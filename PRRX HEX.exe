@@ -1,0 +1,82 @@
+class ma add kro
+
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
+using System.Runtime.InteropServices;
+using System.Threading.Tasks;
+using Decent;
+
+namespace AimbotLogic
+{
+    class Aimbot
+    {
+        [DllImport("user32.dll")]
+        public static extern short GetAsyncKeyState(int vKey);
+
+        static List<nuint> baseAddresses = new();
+        static FastMemory mem;
+        static bool isInitialized = false;
+
+        public static void Work()
+        {
+            while (true)
+            {
+                if (!isInitialized) continue;
+
+                foreach (var baseAddr in baseAddresses)
+                {
+                    WriteAimValue(baseAddr);
+                }
+            }
+        }
+
+        private static void WriteAimValue(nuint baseAddr)
+        {
+            if (baseAddr == 0 || mem == null) return;
+
+            // Read current head/aim value
+            int headValue = mem.ReadInt32((long)(baseAddr + 0xE8));
+            if (headValue == 0) return;
+
+            const int repeat = 10;
+
+            // Write aim position multiple times for stability
+            for (int i = 0; i < repeat; i++)
+            {
+                mem.WriteInt32((long)(baseAddr - 0x2B8), headValue);
+            }
+
+            // Final write
+            mem.WriteInt32((long)(baseAddr - 0x2B8), headValue);
+        }
+
+        public static async Task InitAimbot()
+        {
+            string aobPattern = "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 FF FF FF FF FF FF FF FF 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 FF FF FF FF 00 00 00 00 00 00 00 00 00 00 00 00";
+
+            var process = Process.GetProcessesByName("HD-Player").FirstOrDefault();
+            if (process == null) return;
+
+            mem = new FastMemory();
+            if (!mem.OpenProcessById(process.Id)) return;
+
+            var result = await mem.FastAoBScan2(aobPattern, readable: true, writable: true);
+            baseAddresses = result.Select(r => (nuint)r).ToList();
+
+            isInitialized = baseAddresses.Count > 0;
+        }
+    }
+}
+button code
+
+ [DllImport("user32.dll")]
+        static extern short GetAsyncKeyState(Keys vKey);
+        public Form1() => InitializeComponent();
+
+        private async void button1_Click(object sender, EventArgs e)
+        {
+            new Thread(Aimbot.Work) { IsBackground = true }.Start();
+            await Aimbot.InitAimbot();
+        }
